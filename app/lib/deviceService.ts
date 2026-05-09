@@ -1,55 +1,51 @@
-// mobile/app/lib/authService.ts
-// Mirrors web: src/services/authService.js
+// mobile/app/lib/deviceService.ts
+// Mirrors web: src/services/deviceService.js + activityService.js + detectionService.js
 
-import { post, get, saveTokens, saveUser, clearTokens } from "./api";
+import { get, post, patch, del, unwrapList } from "./api";
 
-export interface UserData {
+// ─── Devices ─────────────────────────────────────────────────────
+export interface Device {
   id: number;
-  username: string;
-  full_name: string;
+  name: string;
+  location: string;
+  is_active: boolean;
+  status: "online" | "offline" | "active";
+  owner_name?: string;
+  created_at: string;
 }
 
-export interface RegisterPayload {
-  username: string;       // contact number used as username
-  password: string;
-  full_name: string;
-  contact_number: string;
-  province: string;
-  municipality?: string;
-  barangay?: string;
+export const getDevices   = ()                          => get("/devices/").then(unwrapList<Device>);
+export const getDevice    = (id: number)                => get<Device>(`/devices/${id}/`);
+export const createDevice = (data: Partial<Device>)     => post<Device>("/devices/", data);
+export const updateDevice = (id: number, fields: Partial<Device>) => patch<Device>(`/devices/${id}/`, fields);
+export const deleteDevice = (id: number)                => del(`/devices/${id}/`);
+
+// ─── Bird Detections ─────────────────────────────────────────────
+export interface Detection {
+  id: number;
+  device: number;
+  device_name?: string;
+  bird_count: number;
+  bird_species: string;
+  confidence_score: number;
+  detected_at: string;
 }
 
-// POST /api/auth/register/
-export const registerUser = async (payload: RegisterPayload) => {
-  const result = await post("/auth/register/", payload);
-  if (result.data?.access) {
-    await saveTokens(result.data.access, result.data.refresh);
-    if (result.data.user) await saveUser(result.data.user);
-  }
-  return result;
-};
+export const getDetections   = ()                            => get("/detections/").then(unwrapList<Detection>);
+export const createDetection = (data: Partial<Detection>)   => post<Detection>("/detections/", data);
+export const deleteDetection = (id: number)                 => del(`/detections/${id}/`);
 
-// POST /api/auth/login/
-export const loginUser = async (username: string, password: string) => {
-  const result = await post<{ access: string; refresh: string; user: UserData }>(
-    "/auth/login/",
-    { username, password }
-  );
-  if (result.data?.access) {
-    await saveTokens(result.data.access, result.data.refresh);
-    if (result.data.user) await saveUser(result.data.user);
-  }
-  return result;
-};
+// ─── Activity Logs ────────────────────────────────────────────────
+export interface ActivityLog {
+  id: number;
+  device: number;
+  device_name?: string;
+  event_type: "motion" | "bird" | "offline" | "online";
+  description: string;
+  action?: string;         // used in web for display
+  created_at: string;
+}
 
-// Clear all tokens (logout)
-export const logoutUser = async () => {
-  await clearTokens();
-};
-
-// GET /api/auth/user/
-export const getCurrentUser = async () => {
-  const result = await get<UserData>("/auth/user/");
-  if (result.data && !result.error) await saveUser(result.data);
-  return result;
-};
+export const getActivities   = ()                           => get("/activities/").then(unwrapList<ActivityLog>);
+export const createActivity  = (data: Partial<ActivityLog>) => post<ActivityLog>("/activities/", data);
+export const deleteActivity  = (id: number)                 => del(`/activities/${id}/`);
