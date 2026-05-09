@@ -1,0 +1,8 @@
+SCARECROW PROJECT
+DB PASS: abbrtSCARECROW_2026
+
+Login Password (For Testing Purpose)
+
+Email: test@example.com 
+Password: Test123!
+
