@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 280, paddingBottom: 40, justifyContent: "center" },
-  title: { fontSize: 25, fontFamily: "Poppins-Bold", color: "#004E00", textAlign: "center", marginBottom: 4 },
+  title: { fontSize: 25, fontFamily: "Poppins-Bold", color: "#1a3a0d", textAlign: "center", marginBottom: 4 },
   subtitle: { fontSize: 11, fontFamily: "Poppins-Regular", color: "#000000", textAlign: "center", marginBottom: 20, lineHeight: 20 },
   inputContainer: { marginBottom: 16 },
   inputWrapper: {
