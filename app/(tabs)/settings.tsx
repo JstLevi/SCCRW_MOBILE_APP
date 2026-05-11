@@ -141,7 +141,6 @@ const styles = StyleSheet.create({
 
   header: {
     paddingHorizontal: 20, paddingVertical: 16,
-    borderBottomWidth: 1, borderBottomColor: "#e0edd0",
     backgroundColor: "rgba(255, 255, 255, 0.3)",
   },
   headerTitle: { fontSize: 22, fontFamily: "Poppins-Bold", color: "#1a3a0d" },

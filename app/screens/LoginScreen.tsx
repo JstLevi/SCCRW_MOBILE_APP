@@ -1,6 +1,8 @@
 // mobile/app/screens/LoginScreen.tsx
+// Mirrors web: src/screens/LoginScreen.jsx
+// Background image + glassmorphism card via BlurView (expo-blur)
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,7 +13,6 @@ import {
   Image,
   Alert,
   ActivityIndicator,
-  Animated,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
@@ -21,144 +22,122 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { loginUser } from "../lib/authService";
 
-// ─── Floating label input ─────────────────────────────────────────
-function FloatingInput({
+// ─── Form input (mirrors web .form-group / .form-input) ──────────
+function FormInput({
   label,
   value,
   onChangeText,
+  placeholder,
   keyboardType,
   secureEntry,
   editable = true,
-  error,
+  hint,
 }: {
   label: string;
   value: string;
   onChangeText: (t: string) => void;
+  placeholder?: string;
   keyboardType?: any;
   secureEntry?: boolean;
   editable?: boolean;
-  error?: string;
+  hint?: string;
 }) {
-  const [focused, setFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const labelAnim = useRef(new Animated.Value(value ? 1 : 0)).current;
-
-  const handleFocus = () => {
-    setFocused(true);
-    Animated.timing(labelAnim, { toValue: 1, duration: 180, useNativeDriver: false }).start();
-  };
-
-  const handleBlur = () => {
-    setFocused(false);
-    if (!value) {
-      Animated.timing(labelAnim, { toValue: 0, duration: 180, useNativeDriver: false }).start();
-    }
-  };
-
-  const labelTop    = labelAnim.interpolate({ inputRange: [0, 1], outputRange: [14, -8] });
-  const labelSize   = labelAnim.interpolate({ inputRange: [0, 1], outputRange: [15, 11] });
-  const labelColor  = error ? "#D32F2F" : focused ? "#004E00" : "#808080";
-  const borderColor = error ? "#D32F2F" : focused ? "#004E00" : "rgba(8,6,71,0.35)";
+  const [focused, setFocused] = useState(false);
 
   return (
-    <View style={inputStyles.wrapper}>
-      <View style={[inputStyles.box, { borderColor }]}>
-        <Animated.Text style={[inputStyles.floatLabel, { top: labelTop, fontSize: labelSize, color: labelColor }]}>
-          {label}
-        </Animated.Text>
+    <View style={iS.group}>
+      <Text style={iS.label}>{label}</Text>
+      <View style={[iS.wrap, focused && iS.wrapFocused]}>
         <TextInput
-          style={inputStyles.input}
+          style={iS.input}
           value={value}
           onChangeText={onChangeText}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
+          placeholder={placeholder}
+          placeholderTextColor="#808080"
           keyboardType={keyboardType}
           secureTextEntry={secureEntry && !showPassword}
           autoCapitalize="none"
           editable={editable}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
         />
         {secureEntry && (
-          <TouchableOpacity onPress={() => setShowPassword((v) => !v)} style={inputStyles.eyeBtn}>
-            <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={18} color="#808080" />
+          <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={iS.eye}>
+            <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#6b7c61" />
           </TouchableOpacity>
         )}
       </View>
-      {error ? <Text style={inputStyles.errorText}>{error}</Text> : null}
+      {hint ? <Text style={iS.hint}>{hint}</Text> : null}
     </View>
   );
 }
 
-const inputStyles = StyleSheet.create({
-  wrapper: { marginBottom: 20 },
-  box: {
-    backgroundColor: "rgba(255,255,255,0.6)",
-    borderRadius: 12,
-    borderWidth: 1.5,
-    height: 64,
-    paddingHorizontal: 14,
-    justifyContent: "center",
-    position: "relative",
+const iS = StyleSheet.create({
+  group: { marginBottom: 14 },
+  label: {
+    fontSize: 11,
+    fontFamily: "Poppins-SemiBold",
+    color: "#004E00",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 6,
   },
-  floatLabel: {
-    marginTop: 4,
-    position: "absolute",
-    left: 14,
-    backgroundColor: "transparent",
-    fontFamily: "Poppins-Medium",
-    zIndex: 1,
+  wrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.55)",
+    borderWidth: 1.5,
+    borderColor: "rgba(0,78,0,0.25)",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+  },
+  wrapFocused: {
+    borderColor: "#004E00",
+    backgroundColor: "rgba(255,255,255,0.75)",
   },
   input: {
-    fontSize: 15,
+    flex: 1,
+    height: 46,
+    fontSize: 14,
     fontFamily: "Poppins-Regular",
     color: "#1a3a0d",
-    paddingTop: 10,
-    paddingRight: 36,
   },
-  eyeBtn: {
-    position: "absolute",
-    right: 14,
-    top: 0,
-    bottom: 0,
-    justifyContent: "center",
-  },
-  errorText: {
+  eye: { padding: 4 },
+  hint: {
     fontSize: 11,
     fontFamily: "Poppins-Regular",
-    color: "#D32F2F",
-    marginTop: 4,
-    marginLeft: 4,
+    color: "#004E00",
+    fontStyle: "italic",
+    marginTop: 5,
+    paddingLeft: 4,
   },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────
 export default function LoginScreen() {
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [password, setPassword]       = useState("");
-  const [loading, setLoading]         = useState(false);
-  const [errors, setErrors]           = useState<{ phone?: string; password?: string }>({});
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState("");
   const router = useRouter();
   const params = useLocalSearchParams<{ phone?: string }>();
 
   useEffect(() => {
-    if (params.phone) setPhoneNumber(params.phone);
+    if (params.phone) setUsername(params.phone);
   }, [params.phone]);
 
-  const validate = () => {
-    const e: typeof errors = {};
-    if (!phoneNumber.trim())        e.phone    = "Phone number is required";
-    else if (phoneNumber.length < 10) e.phone  = "Enter a valid phone number";
-    if (!password.trim())           e.password = "Password is required";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
   const handleLogin = async () => {
-    if (!validate()) return;
+    setError("");
+    if (!username.trim() || !password.trim()) {
+      setError("Please fill in all fields.");
+      return;
+    }
     setLoading(true);
     try {
-      const { data, error } = await loginUser(phoneNumber.trim(), password);
-      if (error) {
-        setErrors({ phone: " ", password: error });
+      const { data, error: loginError } = await loginUser(username.trim(), password);
+      if (loginError) {
+        setError(loginError);
       } else {
         router.replace("../(tabs)/Home");
       }
@@ -171,80 +150,123 @@ export default function LoginScreen() {
 
   return (
     <ImageBackground
-      source={require("../../assets/images/login-bg.png")}
-      style={styles.backgroundImage}
+      source={require("../../assets/images/L_S_bg.png")}
+      style={s.bg}
       resizeMode="cover"
     >
-      <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-        >
+      <SafeAreaView style={s.root}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <ScrollView
-            contentContainerStyle={styles.content}
+            contentContainerStyle={s.scroll}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <Text style={styles.title}>LOG IN NOW</Text>
-            <Text style={styles.subtitle}>
-              Please log in to your account to continue using the app
-            </Text>
 
-            <View style={styles.form}>
-              <FloatingInput
-                label="Phone Number"
-                value={phoneNumber}
-                onChangeText={(t) => { setPhoneNumber(t); setErrors((e) => ({ ...e, phone: undefined })); }}
-                keyboardType="phone-pad"
-                editable={!loading}
-                error={errors.phone}
-              />
-              <FloatingInput
-                label="Password"
-                value={password}
-                onChangeText={(t) => { setPassword(t); setErrors((e) => ({ ...e, password: undefined })); }}
-                secureEntry
-                editable={!loading}
-                error={errors.password}
-              />
+          
+              {/* Inner overlay for extra tint control */}
+              <View style={s.cardOverlay}>
 
-              <TouchableOpacity style={styles.forgotBtn}>
-                <Text style={styles.forgotText}>Forgot password?</Text>
-              </TouchableOpacity>
-            </View>
+                {/* Logo row (mirrors web .auth-logo) */}
+                <View style={s.logoRow}>
+                  <Image
+                    source={require("../../assets/images/main-logo.png")}
+                    style={s.logoImg}
+                    resizeMode="contain"
+                  />
+                  <Text style={s.logoText}>
+                    Scare<Text style={s.logoAccent}>Crow</Text>
+                  </Text>
+                </View>
 
-            <TouchableOpacity
-              style={[styles.loginButton, loading && styles.btnDisabled]}
-              onPress={handleLogin}
-              disabled={loading}
-              activeOpacity={0.85}
-            >
-              {loading
-                ? <ActivityIndicator color="#FFFFFF" size="small" />
-                : <Text style={styles.loginButtonText}>LOG IN</Text>}
-            </TouchableOpacity>
+            
+                <FormInput
+                  label="PHONE NUMBER"
+                  value={username}
+                  onChangeText={setUsername}
+                  placeholder="(eg., 09067541234)"
+                  keyboardType="phone-pad"
+                  editable={!loading}
+                />
 
-            <View style={styles.signUpContainer}>
-              <Text style={styles.signUpText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => router.push("/screens/SignupScreen")} disabled={loading}>
-                <Text style={styles.signUpLink}>Sign Up</Text>
-              </TouchableOpacity>
-            </View>
+                <FormInput
+                  label="Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Password"
+                  secureEntry
+                  editable={!loading}
+                />
 
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.orText}>or continue with</Text>
-              <View style={styles.dividerLine} />
-            </View>
+                {/* Forgot (mirrors web .forgot-row) */}
+                <TouchableOpacity style={s.forgotRow}>
+                  <Text style={s.forgotText}>Forgot password?</Text>
+                </TouchableOpacity>
 
-            <View style={styles.socialContainer}>
-              <TouchableOpacity style={styles.socialBtn} onPress={() => Alert.alert("Info", "Facebook login coming soon!")}>
-                <Image source={require("../../assets/images/fb-icon.png")} style={styles.socialIcon} resizeMode="contain" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialBtn} onPress={() => Alert.alert("Info", "Google login coming soon!")}>
-                <Image source={require("../../assets/images/gmail-icon.png")} style={styles.socialIcon} resizeMode="contain" />
-              </TouchableOpacity>
-            </View>
+                {/* Error (mirrors web .error-box) */}
+                {!!error && (
+                  <View style={s.errorBox}>
+                    <Text style={s.errorText}>{error}</Text>
+                  </View>
+                )}
+
+                {/* Submit (mirrors web .btn-primary) */}
+                <TouchableOpacity
+                  style={[s.btnPrimary, loading && s.btnDisabled]}
+                  onPress={handleLogin}
+                  disabled={loading}
+                  activeOpacity={0.85}
+                >
+                  {loading
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={s.btnPrimaryText}>LOG IN</Text>
+                  }
+                </TouchableOpacity>
+
+                {/* Footer (mirrors web .auth-footer-link) */}
+                <View style={s.footerRow}>
+                  <Text style={s.footerText}>Don't have an account? </Text>
+                  <TouchableOpacity
+                    onPress={() => router.push("/screens/SignupScreen")}
+                    disabled={loading}
+                  >
+                    <Text style={s.footerLink}>Sign Up</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Social (mirrors web .social-section) */}
+                <View style={s.socialSection}>
+                  <View style={s.dividerRow}>
+                    <View style={s.divLine} />
+                    <Text style={s.divText}>or continue with</Text>
+                    <View style={s.divLine} />
+                  </View>
+                  <View style={s.socialBtns}>
+                    <TouchableOpacity
+                      style={s.socialBtn}
+                      onPress={() => Alert.alert("Info", "Facebook login coming soon!")}
+                    >
+                      <Image
+                        source={require("../../assets/images/fb-icon.png")}
+                        style={s.socialIcon}
+                        resizeMode="contain"
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={s.socialBtn}
+                      onPress={() => Alert.alert("Info", "Google login coming soon!")}
+                    >
+                      <Image
+                        source={require("../../assets/images/gmail-icon.png")}
+                        style={s.socialIcon}
+                        resizeMode="contain"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+              </View>
+    
+
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -252,62 +274,119 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  backgroundImage: { flex: 1, width: "100%", height: "100%" },
-  container: { flex: 1 },
-  content: {
+const s = StyleSheet.create({
+  bg: { flex: 1, width: "100%", height: "100%" },
+
+  root: { flex: 1 },
+
+  scroll: {
     flexGrow: 1,
-    paddingHorizontal: 8,
-    paddingTop: 260,
-    paddingBottom: 40,
+    alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 32,
   },
 
-  title: {
-    fontSize: 26, fontFamily: "Poppins-Bold", color: "#1a3a0d",
-    marginBottom: 6, textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 12, fontFamily: "Poppins-Regular", color: "#4a4a4a",
-    marginBottom: 28, textAlign: "center", lineHeight: 20,
+  cardOverlay: {
+    width: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
+    padding: 32,
+    maxWidth: 440,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 1)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 24,
+    
   },
 
-  form: { marginBottom: 4 },
+  // Logo — matches web .auth-logo
+  logoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 28,
+  },
+  logoImg: { width: 82, height: 82, borderRadius: 12 },
+  logoText: { fontSize: 30, fontFamily: "Poppins-Bold", color: "#1a3a0d" },
+  logoAccent: { color: "#004E00" },
 
-  forgotBtn: { alignSelf: "flex-end", marginTop: -10, marginBottom: 24 },
+
+  // Forgot — matches web .forgot-row
+  forgotRow: { alignSelf: "flex-end", marginTop: -4, marginBottom: 12 },
   forgotText: { fontSize: 12, fontFamily: "Poppins-Medium", color: "#004E00" },
 
-  loginButton: {
+  // Error — matches web .error-box
+  errorBox: {
+    backgroundColor: "rgba(211,47,47,0.1)",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+  },
+  errorText: { fontSize: 12, fontFamily: "Poppins-Regular", color: "#c62828" },
+
+  // Button — matches web .btn-primary
+  btnPrimary: {
     backgroundColor: "#004E00",
+    borderWidth: 1.5,
+    borderColor: "#080647",
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
-    marginBottom: 18,
-    borderWidth: 1.5,
-    borderColor: "#080647",
+    marginTop: 8,
     shadowColor: "#004E00",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 6,
   },
-  btnDisabled: { opacity: 0.65 },
-  loginButtonText: { color: "#FFFFFF", fontSize: 15, fontFamily: "Poppins-SemiBold", letterSpacing: 1 },
-
-  signUpContainer: { flexDirection: "row", justifyContent: "center", marginBottom: 20 },
-  signUpText: { color: "#808080", fontSize: 13, fontFamily: "Poppins-Regular" },
-  signUpLink: { color: "#004E00", fontSize: 13, fontFamily: "Poppins-SemiBold" },
-
-  dividerRow: { flexDirection: "row", alignItems: "center", marginBottom: 16, gap: 8 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: "rgba(0,0,0,0.12)" },
-  orText: { fontSize: 12, fontFamily: "Poppins-Regular", color: "#808080" },
-
-  socialContainer: { flexDirection: "row", justifyContent: "center", gap: 16 },
-  socialBtn: {
-    width: 54, height: 54, borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.6)",
-    borderWidth: 1.5, borderColor: "rgba(8,6,71,0.2)",
-    alignItems: "center", justifyContent: "center",
+  btnDisabled: { opacity: 0.6 },
+  btnPrimaryText: {
+    color: "#fff",
+    fontSize: 15,
+    fontFamily: "Poppins-Bold",
+    letterSpacing: 0.5,
   },
-  socialIcon: { width: 30, height: 30 },
+
+  // Footer — matches web .auth-footer-link
+  footerRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 20,
+  },
+  footerText: { fontSize: 13, fontFamily: "Poppins-Regular", color: "#555" },
+  footerLink: {
+    fontSize: 13,
+    fontFamily: "Poppins-SemiBold",
+    color: "#004E00",
+    textDecorationLine: "underline",
+  },
+
+  // Social — matches web .social-section
+  socialSection: { marginTop: 20 },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 14,
+    gap: 6,
+  },
+  divLine: { flex: 1, height: 1, backgroundColor: "rgba(0,78,0,0.15)" },
+  divText: { fontSize: 12, fontFamily: "Poppins-Regular", color: "#808080" },
+  socialBtns: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 14,
+  },
+  socialBtn: {
+    width: 54,
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.6)",
+    borderWidth: 1.5,
+    borderColor: "rgba(0,78,0,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  socialIcon: { width: 28, height: 28 },
 });
