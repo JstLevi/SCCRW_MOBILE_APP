@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(200,230,160,0.18)" },
   safe: { flex: 1 },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 60, paddingBottom: 20 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 20 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
   headerTitle: { fontSize: 24, fontFamily: "Poppins-Bold", color: "#1a3a0d" },
   headerSubtitle: { fontSize: 12, fontFamily: "Poppins-Regular", color: "#808080", marginTop: 2 },

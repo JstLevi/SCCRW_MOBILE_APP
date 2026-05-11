@@ -1,5 +1,7 @@
 // mobile/app/(tabs)/logs.tsx
-// CHANGED: static DEVICE_LOGS → live from /api/activities/ via Django
+// Mirrors web: src/screens/LogsScreen.jsx
+// CHANGED: event_type logic → matches web getType(action) pattern
+// ADDED: device_name display, same emoji/color mapping as web
 
 import React, { useEffect, useState, useCallback } from "react";
 import {
@@ -10,45 +12,101 @@ import {
   ImageBackground,
   StyleSheet,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { getActivities, deleteActivity, ActivityLog } from "../lib/deviceService";
+import { getActivities, deleteActivity, getDetections, ActivityLog, Detection } from "../lib/deviceService";
 
 const FILTERS = ["All", "Today", "Yesterday", "Alerts"];
 
+// ── Mirrors web getEventColor(type) ──────────────────────────────
 function getEventColor(type: string) {
   switch (type) {
-    case "offline": return "#D32F2F";
-    case "online":  return "#004E00";
-    case "bird":    return "#FFA000";
-    case "motion":  return "#1976D2";
-    default:        return "#004E00";
+    case "offline":  return "#D32F2F";
+    case "online":   return "#004E00";
+    case "bird":     return "#FFA000";
+    case "battery":  return "#FF6B00";
+    case "motion":   return "#1976D2";
+    default:         return "#004E00";
   }
 }
 
-function getEmoji(eventType: string) {
-  switch (eventType) {
-    case "bird":    return "🐦";
-    case "offline": return "📵";
-    case "online":  return "✅";
-    case "motion":  return "▶️";
-    default:        return "📋";
-  }
+// ── Mirrors web getEmoji(action) ──────────────────────────────────
+function getEmoji(action: string = "") {
+  const a = action.toLowerCase();
+  if (a.includes("bird") || a.includes("detect"))           return "🐦";
+  if (a.includes("offline") || a.includes("disconnect"))    return "📵";
+  if (a.includes("online") || a.includes("connect"))        return "✅";
+  if (a.includes("battery"))                                 return "🪫";
+  if (a.includes("motion"))                                  return "▶️";
+  if (a.includes("update"))                                  return "☁️";
+  if (a.includes("snapshot") || a.includes("camera"))       return "📸";
+  // Fall back to event_type if no action string
+  return "📋";
+}
+
+// ── Mirrors web getType(action) ───────────────────────────────────
+function getType(action: string = "", event_type?: string) {
+  const a = action.toLowerCase();
+  if (a.includes("offline") || a.includes("disconnect"))  return "offline";
+  if (a.includes("online") || a.includes("connect"))     return "online";
+  if (a.includes("bird") || a.includes("detect"))        return "bird";
+  if (a.includes("battery"))                              return "battery";
+  if (a.includes("motion"))                              return "motion";
+  // Fall back to event_type from API
+  return event_type || "system";
+}
+
+// ── Log row (mirrors web LogEntry component) ──────────────────────
+function LogRow({ log, onDelete }: { log: ActivityLog; onDelete: (id: number) => void }) {
+  // Web uses log.action for emoji/type; mobile API returns event_type + description
+  // Bridge: use description as the "action" string for emoji detection, fall back to event_type
+  const actionStr = log.description || log.event_type || "";
+  const type  = getType(actionStr, log.event_type);
+  const color = getEventColor(type);
+  const emoji = getEmoji(actionStr);
+  const time  = log.created_at
+    ? new Date(log.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "—";
+
+  return (
+    <View style={styles.logRow}>
+      <View style={[styles.logIconSquare, { backgroundColor: color + "22" }]}>
+        <Text style={{ fontSize: 18 }}>{emoji}</Text>
+      </View>
+      <View style={styles.logContent}>
+        <View style={styles.logHeader}>
+          {/* Mirrors web: Device #log.device OR device_name */}
+          <Text style={styles.logDevice}>{log.device_name ?? `Device #${log.device}`}</Text>
+          <Text style={styles.logTime}>{time}</Text>
+        </View>
+        {/* Mirrors web: log.action — description + event_type */}
+        <Text style={styles.logEvent}>
+          {log.event_type}{log.description ? ` — ${log.description}` : ""}
+        </Text>
+      </View>
+      <TouchableOpacity onPress={() => onDelete(log.id)} style={{ padding: 4 }}>
+        <Ionicons name="close" size={16} color="#D32F2F" />
+      </TouchableOpacity>
+    </View>
+  );
 }
 
 export default function LogsScreen() {
   const [selectedFilter, setSelectedFilter] = useState("All");
   const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [detections, setDetections] = useState<Detection[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchLogs = useCallback(async () => {
     setError(null);
-    const result = await getActivities();
-    if (result.error) setError(result.error);
-    else setLogs(result.data ?? []);
+    const [actResult, detResult] = await Promise.all([getActivities(), getDetections()]);
+    if (actResult.error) setError(actResult.error);
+    else setLogs(actResult.data ?? []);
+    if (!detResult.error) setDetections(detResult.data ?? []);
   }, []);
 
   useEffect(() => {
@@ -63,18 +121,29 @@ export default function LogsScreen() {
   }, [fetchLogs]);
 
   const handleDelete = async (id: number) => {
-    await deleteActivity(id);
-    setLogs((prev) => prev.filter((l) => l.id !== id));
+    Alert.alert("Delete", "Delete this log entry?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await deleteActivity(id);
+          setLogs((prev) => prev.filter((l) => l.id !== id));
+        },
+      },
+    ]);
   };
 
+  // ── Filter logic (mirrors web LogsScreen exactly) ─────────────
   const today     = new Date().toDateString();
   const yesterday = new Date(Date.now() - 86400000).toDateString();
 
   const filtered = logs.filter((log) => {
     const logDate = log.created_at ? new Date(log.created_at).toDateString() : "";
+    const actionStr = log.description || log.event_type || "";
     if (selectedFilter === "Today")     return logDate === today;
     if (selectedFilter === "Yesterday") return logDate === yesterday;
-    if (selectedFilter === "Alerts")    return log.event_type === "offline";
+    if (selectedFilter === "Alerts")    return ["offline", "battery"].includes(getType(actionStr, log.event_type));
     return true;
   });
 
@@ -86,8 +155,16 @@ export default function LogsScreen() {
     return d !== today && d !== yesterday;
   });
 
-  const alertCount   = logs.filter((l) => l.event_type === "offline").length;
-  const offlineCount = alertCount;
+  // ── Stats (mirrors web LogsScreen stats) ──────────────────────
+  const totalEvents  = logs.length + (detections?.length ?? 0);
+  const alertCount   = logs.filter((l) => {
+    const a = l.description || l.event_type || "";
+    return ["offline", "battery"].includes(getType(a, l.event_type));
+  }).length;
+  const offlineCount = logs.filter((l) => {
+    const a = l.description || l.event_type || "";
+    return getType(a, l.event_type) === "offline";
+  }).length;
 
   return (
     <ImageBackground
@@ -114,10 +191,10 @@ export default function LogsScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Stats Summary */}
+          {/* ── Stats Summary (mirrors web stats-row) ── */}
           <View style={styles.statsCard}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{loading ? "…" : logs.length}</Text>
+              <Text style={styles.statNumber}>{loading ? "…" : totalEvents}</Text>
               <Text style={styles.statLabel}>Total Events</Text>
             </View>
             <View style={styles.statDivider} />
@@ -132,7 +209,7 @@ export default function LogsScreen() {
             </View>
           </View>
 
-          {/* Filter Chips */}
+          {/* ── Filter Chips (mirrors web filter-chips) ── */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
             <View style={styles.filterContainer}>
               {FILTERS.map((filter) => (
@@ -161,7 +238,7 @@ export default function LogsScreen() {
             <Text style={styles.loadingText}>No logs found.</Text>
           )}
 
-          {/* Today */}
+          {/* ── Today ── */}
           {todayLogs.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
@@ -173,7 +250,7 @@ export default function LogsScreen() {
             </View>
           )}
 
-          {/* Yesterday */}
+          {/* ── Yesterday ── */}
           {yesterdayLogs.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
@@ -185,9 +262,9 @@ export default function LogsScreen() {
             </View>
           )}
 
-          {/* Older */}
+          {/* ── Older ── */}
           {olderLogs.length > 0 && (
-            <View style={[styles.section, { marginBottom: 100 }]}>
+            <View style={[styles.section, { marginBottom: 20 }]}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Older</Text>
               </View>
@@ -197,8 +274,8 @@ export default function LogsScreen() {
             </View>
           )}
 
-          {/* Export */}
-          <TouchableOpacity style={styles.exportButton}>
+          {/* ── Export Button (mirrors web action-btn) ── */}
+          <TouchableOpacity style={[styles.exportButton, { marginBottom: 100 }]}>
             <Ionicons name="download-outline" size={20} color="#fff" />
             <Text style={styles.exportText}>Export Logs</Text>
           </TouchableOpacity>
@@ -208,38 +285,12 @@ export default function LogsScreen() {
   );
 }
 
-function LogRow({ log, onDelete }: { log: ActivityLog; onDelete: (id: number) => void }) {
-  const color = getEventColor(log.event_type);
-  const emoji = getEmoji(log.event_type);
-  const time  = log.created_at
-    ? new Date(log.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    : "—";
-
-  return (
-    <TouchableOpacity style={styles.logRow}>
-      <View style={[styles.logIconWrap, { backgroundColor: color + "22" }]}>
-        <Text style={{ fontSize: 18 }}>{emoji}</Text>
-      </View>
-      <View style={styles.logContent}>
-        <View style={styles.logHeader}>
-          <Text style={styles.logDevice}>{log.device_name ?? `Device #${log.device}`}</Text>
-          <Text style={styles.logTime}>{time}</Text>
-        </View>
-        <Text style={styles.logEvent}>{log.description}</Text>
-      </View>
-      <TouchableOpacity onPress={() => onDelete(log.id)} style={{ padding: 4 }}>
-        <Ionicons name="close" size={16} color="#D32F2F" />
-      </TouchableOpacity>
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
   bg: { flex: 1, width: "100%", height: "100%" },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(200,230,160,0.18)" },
   safe: { flex: 1 },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 60, paddingBottom: 20 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 20, },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
   headerTitle: { fontSize: 24, fontFamily: "Poppins-Bold", color: "#1a3a0d" },
   headerSubtitle: { fontSize: 12, fontFamily: "Poppins-Regular", color: "#808080", marginTop: 2 },
@@ -262,12 +313,12 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   sectionTitle: { fontSize: 14, fontFamily: "Poppins-SemiBold", color: "#1a3a0d" },
   logRow: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(200,232,144,0.3)", borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#b8dc88" },
-  logIconWrap: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  logIconSquare: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   logContent: { flex: 1, marginLeft: 12 },
   logHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 2 },
   logDevice: { fontSize: 13, fontFamily: "Poppins-SemiBold", color: "#1a3a0d" },
   logTime: { fontSize: 10, fontFamily: "Poppins-Regular", color: "#808080" },
   logEvent: { fontSize: 12, fontFamily: "Poppins-Regular", color: "#4a4a4a" },
-  exportButton: { flexDirection: "row", backgroundColor: "#004E00", borderRadius: 14, paddingVertical: 14, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "#080647", marginBottom: 20, gap: 8 },
+  exportButton: { flexDirection: "row", backgroundColor: "#004E00", borderRadius: 14, paddingVertical: 14, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "#080647", gap: 8 },
   exportText: { color: "#fff", fontSize: 14, fontFamily: "Poppins-SemiBold" },
 });

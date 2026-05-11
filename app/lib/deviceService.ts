@@ -14,11 +14,11 @@ export interface Device {
   created_at: string;
 }
 
-export const getDevices   = ()                          => get("/devices/").then(unwrapList<Device>);
-export const getDevice    = (id: number)                => get<Device>(`/devices/${id}/`);
-export const createDevice = (data: Partial<Device>)     => post<Device>("/devices/", data);
+export const getDevices   = ()                                    => get("/devices/").then(unwrapList<Device>);
+export const getDevice    = (id: number)                          => get<Device>(`/devices/${id}/`);
+export const createDevice = (data: Partial<Device>)               => post<Device>("/devices/", data);
 export const updateDevice = (id: number, fields: Partial<Device>) => patch<Device>(`/devices/${id}/`, fields);
-export const deleteDevice = (id: number)                => del(`/devices/${id}/`);
+export const deleteDevice = (id: number)                          => del(`/devices/${id}/`);
 
 // ─── Bird Detections ─────────────────────────────────────────────
 export interface Detection {
@@ -42,7 +42,7 @@ export interface ActivityLog {
   device_name?: string;
   event_type: "motion" | "bird" | "offline" | "online";
   description: string;
-  action?: string;         // used in web for display
+  action?: string;       // mirrors web: used in LogsScreen for emoji/type detection
   created_at: string;
 }
 
