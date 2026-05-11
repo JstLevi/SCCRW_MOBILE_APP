@@ -72,7 +72,12 @@ export const request = async <T = any>(
     const res = await fetch(`${BASE_URL}${endpoint}`, options);
 
     // Auto-refresh on 401
-    if (res.status === 401 && retry) {
+    if (
+      res.status === 401 &&
+      retry &&
+      endpoint !== "/auth/login/" &&
+      endpoint !== "/auth/register/"
+    ) {
       const newToken = await refreshAccessToken();
       if (newToken) return request(method, endpoint, body, false);
       await clearTokens();
@@ -86,9 +91,10 @@ export const request = async <T = any>(
     if (!res.ok) {
       const anyData = data as any;
       const errorMsg =
+        anyData?.error ||
         anyData?.detail ||
         anyData?.non_field_errors?.[0] ||
-        (Object.values(anyData || {}) as any [])?.[0]?.[0] ||
+        (Object.values(anyData || {}) as any[])?.[0]?.[0] ||
         `Error ${res.status}`;
       return { data: null, error: String(errorMsg), status: res.status };
     }

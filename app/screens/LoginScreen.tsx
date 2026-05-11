@@ -139,7 +139,12 @@ export default function LoginScreen() {
       if (loginError) {
         setError(loginError);
       } else {
-        router.replace("../(tabs)/Home");
+        Alert.alert("Success", "Login successful!", [
+          {
+            text: "Continue",
+            onPress: () => router.replace("../(tabs)/Home"),
+          },
+        ]);
       }
     } catch {
       Alert.alert("Error", "Network error. Please check your connection and try again.");
