@@ -160,113 +160,108 @@ export default function LoginScreen() {
             contentContainerStyle={s.scroll}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-          >
+          >    
+            {/* Inner overlay for extra tint control */}
+            <View style={s.cardOverlay}>
+
+              {/* Logo row (mirrors web .auth-logo) */}
+              <View style={s.logoRow}>
+                <Image
+                  source={require("../../assets/images/main-logo.png")}
+                  style={s.logoImg}
+                  resizeMode="contain"
+                />
+                <Text style={s.logoText}>
+                  Scare<Text style={s.logoAccent}>Crow</Text>
+                </Text>
+              </View>
 
           
-              {/* Inner overlay for extra tint control */}
-              <View style={s.cardOverlay}>
+              <FormInput
+                label="PHONE NUMBER"
+                value={username}
+                onChangeText={setUsername}
+                placeholder="(eg., 09067541234)"
+                keyboardType="phone-pad"
+                editable={!loading}
+              />
 
-                {/* Logo row (mirrors web .auth-logo) */}
-                <View style={s.logoRow}>
-                  <Image
-                    source={require("../../assets/images/main-logo.png")}
-                    style={s.logoImg}
-                    resizeMode="contain"
-                  />
-                  <Text style={s.logoText}>
-                    Scare<Text style={s.logoAccent}>Crow</Text>
-                  </Text>
+              <FormInput
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Password"
+                secureEntry
+                editable={!loading}
+              />
+
+              {/* Forgot (mirrors web .forgot-row) */}
+              <TouchableOpacity style={s.forgotRow}>
+                <Text style={s.forgotText}>Forgot password?</Text>
+              </TouchableOpacity>
+
+              {/* Error (mirrors web .error-box) */}
+              {!!error && (
+                <View style={s.errorBox}>
+                  <Text style={s.errorText}>{error}</Text>
                 </View>
+              )}
 
-            
-                <FormInput
-                  label="PHONE NUMBER"
-                  value={username}
-                  onChangeText={setUsername}
-                  placeholder="(eg., 09067541234)"
-                  keyboardType="phone-pad"
-                  editable={!loading}
-                />
+              {/* Submit (mirrors web .btn-primary) */}
+              <TouchableOpacity
+                style={[s.btnPrimary, loading && s.btnDisabled]}
+                onPress={handleLogin}
+                disabled={loading}
+                activeOpacity={0.85}
+              >
+                {loading
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={s.btnPrimaryText}>LOG IN</Text>
+                }
+              </TouchableOpacity>
 
-                <FormInput
-                  label="Password"
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Password"
-                  secureEntry
-                  editable={!loading}
-                />
-
-                {/* Forgot (mirrors web .forgot-row) */}
-                <TouchableOpacity style={s.forgotRow}>
-                  <Text style={s.forgotText}>Forgot password?</Text>
-                </TouchableOpacity>
-
-                {/* Error (mirrors web .error-box) */}
-                {!!error && (
-                  <View style={s.errorBox}>
-                    <Text style={s.errorText}>{error}</Text>
-                  </View>
-                )}
-
-                {/* Submit (mirrors web .btn-primary) */}
+              {/* Footer (mirrors web .auth-footer-link) */}
+              <View style={s.footerRow}>
+                <Text style={s.footerText}>Don't have an account? </Text>
                 <TouchableOpacity
-                  style={[s.btnPrimary, loading && s.btnDisabled]}
-                  onPress={handleLogin}
+                  onPress={() => router.push("/screens/SignupScreen")}
                   disabled={loading}
-                  activeOpacity={0.85}
                 >
-                  {loading
-                    ? <ActivityIndicator color="#fff" size="small" />
-                    : <Text style={s.btnPrimaryText}>LOG IN</Text>
-                  }
+                  <Text style={s.footerLink}>Sign Up</Text>
                 </TouchableOpacity>
+              </View>
 
-                {/* Footer (mirrors web .auth-footer-link) */}
-                <View style={s.footerRow}>
-                  <Text style={s.footerText}>Don't have an account? </Text>
+              {/* Social (mirrors web .social-section) */}
+              <View style={s.socialSection}>
+                <View style={s.dividerRow}>
+                  <View style={s.divLine} />
+                  <Text style={s.divText}>or continue with</Text>
+                  <View style={s.divLine} />
+                </View>
+                <View style={s.socialBtns}>
                   <TouchableOpacity
-                    onPress={() => router.push("/screens/SignupScreen")}
-                    disabled={loading}
+                    style={s.socialBtn}
+                    onPress={() => Alert.alert("Info", "Facebook login coming soon!")}
                   >
-                    <Text style={s.footerLink}>Sign Up</Text>
+                    <Image
+                      source={require("../../assets/images/fb-icon.png")}
+                      style={s.socialIcon}
+                      resizeMode="contain"
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={s.socialBtn}
+                    onPress={() => Alert.alert("Info", "Google login coming soon!")}
+                  >
+                    <Image
+                      source={require("../../assets/images/gmail-icon.png")}
+                      style={s.socialIcon}
+                      resizeMode="contain"
+                    />
                   </TouchableOpacity>
                 </View>
-
-                {/* Social (mirrors web .social-section) */}
-                <View style={s.socialSection}>
-                  <View style={s.dividerRow}>
-                    <View style={s.divLine} />
-                    <Text style={s.divText}>or continue with</Text>
-                    <View style={s.divLine} />
-                  </View>
-                  <View style={s.socialBtns}>
-                    <TouchableOpacity
-                      style={s.socialBtn}
-                      onPress={() => Alert.alert("Info", "Facebook login coming soon!")}
-                    >
-                      <Image
-                        source={require("../../assets/images/fb-icon.png")}
-                        style={s.socialIcon}
-                        resizeMode="contain"
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={s.socialBtn}
-                      onPress={() => Alert.alert("Info", "Google login coming soon!")}
-                    >
-                      <Image
-                        source={require("../../assets/images/gmail-icon.png")}
-                        style={s.socialIcon}
-                        resizeMode="contain"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
               </View>
-    
-
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
