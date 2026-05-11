@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1, paddingHorizontal: 24, justifyContent: "center" },
   title: {
-    fontSize: 25, fontFamily: "Poppins-Bold", color: "#000000",
+    fontSize: 25, fontFamily: "Poppins-Bold", color: "#1a3a0d",
     marginTop: 280, marginBottom: 5, textAlign: "center",
   },
   subtitle: {
